@@ -87,20 +87,38 @@ class MyToolWindowFactory : ToolWindowFactory {
                 cellRenderer = BookListCellRenderer()
                 selectionMode = ListSelectionModel.SINGLE_SELECTION
                 border = EmptyBorder(0, 0, 0, 0)
-                addListSelectionListener {
-                    if (!it.valueIsAdjusting) {
-                        val selected = selectedValue
-                        if (selected != null) {
-                            val vFile = LocalFileSystem.getInstance().findFileByPath(selected.path)
-                            if (vFile != null && vFile.exists()) {
-                                FileEditorManager.getInstance(project).openFile(vFile, true)
+                
+                // Click to open or remove
+                addMouseListener(object : java.awt.event.MouseAdapter() {
+                    override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                        val index = locationToIndex(e.point)
+                        if (index != -1) {
+                            val selected = listModel.getElementAt(index)
+                            val cellBounds = getCellBounds(index, index)
+                            
+                            // Check if trash icon was clicked (it's on the right side)
+                            val trashIconWidth = 40
+                            if (e.x > cellBounds.x + cellBounds.width - trashIconWidth) {
+                                // Remove book from history
+                                service.removeBook(selected.path)
+                                
+                                // Close editor if open
+                                val vFile = LocalFileSystem.getInstance().findFileByPath(selected.path)
+                                if (vFile != null) {
+                                    FileEditorManager.getInstance(project).closeFile(vFile)
+                                }
+                            } else {
+                                // Open book
+                                val vFile = LocalFileSystem.getInstance().findFileByPath(selected.path)
+                                if (vFile != null && vFile.exists()) {
+                                    FileEditorManager.getInstance(project).openFile(vFile, true)
+                                }
                             }
-                            clearSelection()
                         }
                     }
-                }
+                })
             }
-            
+
             val scrollPane = JBScrollPane(list)
             scrollPane.border = JBUI.Borders.empty()
             mainPanel.add(scrollPane, BorderLayout.CENTER)
@@ -135,8 +153,6 @@ class MyToolWindowFactory : ToolWindowFactory {
                     mainPanel.repaint()
                 }
                 
-                // Update model without clearing if possible, to preserve scroll position/selection
-                // For simplicity, we compare and update
                 listModel.clear()
                 recentBooks.forEach { listModel.addElement(it) }
             }
@@ -164,6 +180,7 @@ class MyToolWindowFactory : ToolWindowFactory {
             titleLabel.font = titleLabel.font.deriveFont(Font.BOLD)
             titleLabel.foreground = if (isSelected) list.selectionForeground else list.foreground
             gbc.gridy = 0
+            gbc.gridx = 0
             panel.add(titleLabel, gbc)
 
             // Author
@@ -172,6 +189,7 @@ class MyToolWindowFactory : ToolWindowFactory {
                 authorLabel.font = authorLabel.font.deriveFont(11f)
                 authorLabel.foreground = if (isSelected) list.selectionForeground else UIUtil.getInactiveTextColor()
                 gbc.gridy = 1
+                gbc.gridx = 0
                 panel.add(authorLabel, gbc)
             }
 
@@ -183,8 +201,18 @@ class MyToolWindowFactory : ToolWindowFactory {
                 progressLabel.font = progressLabel.font.deriveFont(10f)
                 progressLabel.foreground = if (isSelected) list.selectionForeground else UIUtil.getContextHelpForeground()
                 gbc.gridy = 2
+                gbc.gridx = 0
                 panel.add(progressLabel, gbc)
             }
+
+            // Trash Icon
+            val trashLabel = JLabel(com.intellij.icons.AllIcons.Actions.GC)
+            gbc.gridx = 1
+            gbc.gridy = 0
+            gbc.gridheight = 3
+            gbc.weightx = 0.0
+            gbc.anchor = GridBagConstraints.EAST
+            panel.add(trashLabel, gbc)
 
             return panel
         }
