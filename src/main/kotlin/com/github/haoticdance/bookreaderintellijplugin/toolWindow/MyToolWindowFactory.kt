@@ -3,7 +3,7 @@ package com.github.haoticdance.bookreaderintellijplugin.toolWindow
 import com.github.haoticdance.bookreaderintellijplugin.services.BookReaderService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileChooser.FileChooser
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -52,8 +52,6 @@ class MyToolWindowFactory : ToolWindowFactory {
         })
     }
 
-    override fun shouldBeAvailable(project: Project) = true
-
     class MyToolWindow(private val project: Project) {
         private val service = project.service<BookReaderService>()
         private val listModel = DefaultListModel<BookReaderService.RecentBook>()
@@ -68,7 +66,7 @@ class MyToolWindowFactory : ToolWindowFactory {
             headerPanel.border = JBUI.Borders.empty(10)
             val openButton = JButton("Open New Book").apply {
                 addActionListener {
-                    val descriptor = FileChooserDescriptorFactory.createSingleFileDescriptor()
+                    val descriptor = FileChooserDescriptor(true, false, false, false, false, false)
                         .withFileFilter { it.extension?.lowercase() in listOf("fb2", "epub", "pdf") }
                     
                     val file = FileChooser.chooseFile(descriptor, project, null)
