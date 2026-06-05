@@ -69,7 +69,7 @@ class MyToolWindowFactory : ToolWindowFactory {
             val openButton = JButton("Open New Book").apply {
                 addActionListener {
                     val descriptor = FileChooserDescriptorFactory.createSingleFileDescriptor()
-                        .withFileFilter { it.extension?.lowercase() in listOf("fb2", "epub", "mobi", "pdf") }
+                        .withFileFilter { it.extension?.lowercase() in listOf("fb2", "epub", "pdf") }
                     
                     val file = FileChooser.chooseFile(descriptor, project, null)
                     if (file != null) {
@@ -118,7 +118,7 @@ class MyToolWindowFactory : ToolWindowFactory {
             if (!hasBooks) {
                 if (centerComponent !is JBLabel) {
                     mainPanel.remove(centerComponent)
-                    val emptyLabel = JBLabel("<html><center>No recent books. Start reading!<br><br><font color='gray'>Supported formats: FB2, EPUB, MOBI, PDF</font></center></html>").apply {
+                    val emptyLabel = JBLabel("<html><center>No recent books. Start reading!<br><br><font color='gray'>Supported formats: FB2, EPUB, PDF</font></center></html>").apply {
                         horizontalAlignment = SwingConstants.CENTER
                     }
                     mainPanel.add(emptyLabel, BorderLayout.CENTER)

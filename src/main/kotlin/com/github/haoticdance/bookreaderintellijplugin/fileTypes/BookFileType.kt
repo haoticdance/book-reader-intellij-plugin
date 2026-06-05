@@ -8,7 +8,7 @@ import javax.swing.Icon
 class BookFileType : FileType {
     override fun getName(): String = "Book"
 
-    override fun getDescription(): String = "Book and Document Files (FB2, EPUB, MOBI, PDF)"
+    override fun getDescription(): String = "Book and Document Files (FB2, EPUB, PDF)"
 
     override fun getDefaultExtension(): String = "epub"
 

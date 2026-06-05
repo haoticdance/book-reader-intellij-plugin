@@ -3,7 +3,6 @@ package com.github.haoticdance.bookreaderintellijplugin.editor
 import com.github.haoticdance.bookreaderintellijplugin.models.BookModel
 import com.github.haoticdance.bookreaderintellijplugin.parsers.EpubParser
 import com.github.haoticdance.bookreaderintellijplugin.parsers.FB2Parser
-import com.github.haoticdance.bookreaderintellijplugin.parsers.MobiParser
 import com.github.haoticdance.bookreaderintellijplugin.services.BookReaderService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditor
@@ -161,7 +160,6 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
             bookModel = when (file.extension?.lowercase()) {
                 "fb2" -> FB2Parser().parse(ioFile.inputStream())
                 "epub" -> EpubParser().parse(ioFile)
-                "mobi" -> MobiParser().parse(ioFile)
                 else -> null
             }
             

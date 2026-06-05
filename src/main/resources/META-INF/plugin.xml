@@ -23,7 +23,7 @@
     <resource-bundle>messages.MyBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <fileType name="Book" implementationClass="com.github.haoticdance.bookreaderintellijplugin.fileTypes.BookFileType" fieldName="INSTANCE" extensions="fb2;epub;mobi;pdf"/>
+        <fileType name="Book" implementationClass="com.github.haoticdance.bookreaderintellijplugin.fileTypes.BookFileType" fieldName="INSTANCE" extensions="fb2;epub;pdf"/>
         <fileEditorProvider implementation="com.github.haoticdance.bookreaderintellijplugin.editor.BookFileEditorProvider"/>
         
         <toolWindow factoryClass="com.github.haoticdance.bookreaderintellijplugin.toolWindow.MyToolWindowFactory" id="Book Reader" icon="/icons/book.svg"/>

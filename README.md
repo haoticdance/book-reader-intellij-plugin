@@ -6,7 +6,7 @@
 
 ## Features
 
-- **Multi-format Support:** Read EPUB, FB2, MOBI, and PDF files.
+- **Multi-format Support:** Read EPUB, FB2, and PDF files.
 - **Dedicated Editor:** Custom file editor with navigation and theme support.
 - **Recent Books Tool Window:** Quickly access your library and track your reading progress.
 - **Night Mode:** Toggle between Light and Night themes for comfortable reading in any environment.
@@ -16,7 +16,6 @@
 
 - **EPUB** (.epub)
 - **FB2** (.fb2)
-- **MOBI** (.mobi)
 - **PDF** (.pdf)
 
 ## Installation
