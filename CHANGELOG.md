@@ -2,6 +2,8 @@
 
 # Book Reader Changelog
 
+## [Unreleased]
+
 ## [0.0.2]
 ### Added
 - Expanded compatibility to all JetBrains IDEs (WebStorm, PyCharm, CLion, etc.).
