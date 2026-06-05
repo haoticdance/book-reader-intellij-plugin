@@ -1,19 +1,16 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <id>com.github.haoticdance.bookreaderintellijplugin</id>
-    <name>book-reader-intellij-plugin</name>
+    <name>Book Reader</name>
     <vendor>haoticdance</vendor>
     <description><![CDATA[
-        <p><b>Book Reader</b> is an IntelliJ IDEA plugin that allows you to read your favorite books directly in your IDE.</p>
-        <p>Supported formats:
+        Read EPUB, FB2, and PDF books directly in your IDE.
+        <p>Features:</p>
         <ul>
-            <li><b>EPUB</b></li>
-            <li><b>FB2</b></li>
-            <li><b>MOBI</b></li>
-            <li><b>PDF</b></li>
+            <li>EPUB, FB2, PDF support</li>
+            <li>Light / Night theme</li>
+            <li>Recent books tool window</li>
         </ul>
-        </p>
-        <p>Features include a dedicated tool window for recent books, customizable themes (Light/Night), and a seamless reading experience.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
