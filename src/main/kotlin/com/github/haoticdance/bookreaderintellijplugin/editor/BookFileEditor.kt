@@ -12,6 +12,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.jcef.JBCefBrowser
+import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
@@ -107,7 +108,7 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
         }, cefBrowser.cefBrowser)
 
         if (file.extension?.lowercase() == "pdf") {
-            jsQuery = JBCefJSQuery.create(cefBrowser).apply {
+            jsQuery = JBCefJSQuery.create(cefBrowser as JBCefBrowserBase).apply {
                 addHandler { dataStr ->
                     try {
                         val parts = dataStr.split(",")
