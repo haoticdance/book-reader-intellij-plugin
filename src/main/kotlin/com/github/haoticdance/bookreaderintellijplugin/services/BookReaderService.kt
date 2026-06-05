@@ -61,6 +61,12 @@ class BookReaderService(private val project: com.intellij.openapi.project.Projec
         project.messageBus.syncPublisher(MyToolWindowFactory.TOPIC).onBookUpdated()
     }
 
+    fun removeBook(path: String) {
+        if (myState.recentBooks.removeIf { it.path == path }) {
+            project.messageBus.syncPublisher(MyToolWindowFactory.TOPIC).onBookUpdated()
+        }
+    }
+
     fun getRecentBooks(): List<RecentBook> = myState.recentBooks
     
     fun getLastPath(): String? = myState.recentBooks.firstOrNull()?.path
