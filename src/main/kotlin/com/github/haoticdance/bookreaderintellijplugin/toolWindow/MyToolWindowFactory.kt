@@ -204,7 +204,7 @@ class MyToolWindowFactory : ToolWindowFactory {
             }
 
             // Trash Icon
-            val trashLabel = JLabel(com.intellij.icons.AllIcons.Actions.GC)
+            val trashLabel = JLabel(com.intellij.icons.AllIcons.Actions.Cancel)
             gbc.gridx = 1
             gbc.gridy = 0
             gbc.gridheight = 3
