@@ -4,16 +4,28 @@
     <name>book-reader-intellij-plugin</name>
     <vendor>haoticdance</vendor>
     <description><![CDATA[
-        <p><b>book-reader-intellij-plugin</b> is a repository that provides a pure template to make it easier to create a new plugin project.</p>
-        <p>The main goal of this template is to speed up the setup phase of plugin development for both new and experienced developers by preconfiguring the project scaffold and CI, linking to the proper documentation pages, and keeping everything organized.</p>
+        <p><b>Book Reader</b> is an IntelliJ IDEA plugin that allows you to read your favorite books directly in your IDE.</p>
+        <p>Supported formats:
+        <ul>
+            <li><b>EPUB</b></li>
+            <li><b>FB2</b></li>
+            <li><b>MOBI</b></li>
+            <li><b>PDF</b></li>
+        </ul>
+        </p>
+        <p>Features include a dedicated tool window for recent books, customizable themes (Light/Night), and a seamless reading experience.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.modules.java</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.haoticdance.bookreaderintellijplugin.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="com.github.haoticdance.bookreaderintellijplugin.startup.MyProjectActivity" />
+        <fileType name="Book" implementationClass="com.github.haoticdance.bookreaderintellijplugin.fileTypes.BookFileType" fieldName="INSTANCE" extensions="fb2;epub;mobi;pdf"/>
+        <fileEditorProvider implementation="com.github.haoticdance.bookreaderintellijplugin.editor.BookFileEditorProvider"/>
+        
+        <toolWindow factoryClass="com.github.haoticdance.bookreaderintellijplugin.toolWindow.MyToolWindowFactory" id="Book Reader" icon="/icons/book.svg"/>
     </extensions>
 </idea-plugin>
