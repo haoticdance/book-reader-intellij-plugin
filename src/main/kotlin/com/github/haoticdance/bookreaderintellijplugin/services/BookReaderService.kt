@@ -1,14 +1,18 @@
 package com.github.haoticdance.bookreaderintellijplugin.services
 
-import com.intellij.openapi.components.*
 import com.github.haoticdance.bookreaderintellijplugin.toolWindow.MyToolWindowFactory
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
 
 @State(
     name = "BookReaderState",
     storages = [Storage("book-reader-state.xml")]
 )
 @Service(Service.Level.PROJECT)
-class BookReaderService(private val project: com.intellij.openapi.project.Project) : PersistentStateComponent<BookReaderService.State> {
+class BookReaderService(private val project: com.intellij.openapi.project.Project) :
+    PersistentStateComponent<BookReaderService.State> {
     data class RecentBook(
         var path: String = "",
         var title: String = "",
@@ -34,13 +38,20 @@ class BookReaderService(private val project: com.intellij.openapi.project.Projec
     }
 
     fun isDarkMode(): Boolean = myState.isDarkMode
-    
+
     fun setDarkMode(enabled: Boolean) {
         myState.isDarkMode = enabled
         project.messageBus.syncPublisher(MyToolWindowFactory.SETTINGS_TOPIC).onSettingsChanged()
     }
 
-    fun updateBookProgress(path: String, title: String, author: String, page: Int, total: Int, moveToTop: Boolean = true) {
+    fun updateBookProgress(
+        path: String,
+        title: String,
+        author: String,
+        page: Int,
+        total: Int,
+        moveToTop: Boolean = true
+    ) {
         val existing = myState.recentBooks.find { it.path == path }
         if (existing != null) {
             existing.lastPage = page
@@ -53,11 +64,11 @@ class BookReaderService(private val project: com.intellij.openapi.project.Projec
         } else {
             myState.recentBooks.add(0, RecentBook(path, title, author, page, total, System.currentTimeMillis()))
         }
-        
+
         if (myState.recentBooks.size > 10) {
             myState.recentBooks.removeAt(myState.recentBooks.size - 1)
         }
-        
+
         project.messageBus.syncPublisher(MyToolWindowFactory.TOPIC).onBookUpdated()
     }
 
@@ -67,8 +78,15 @@ class BookReaderService(private val project: com.intellij.openapi.project.Projec
         }
     }
 
-    fun getRecentBooks(): List<RecentBook> = myState.recentBooks
-    
+    fun getRecentBooks(): List<RecentBook> = myState.recentBooks.map { book ->
+        book.copy(path = resolvePath(book.path))
+    }
+
+    private fun resolvePath(path: String): String {
+        val home = System.getProperty("user.home").replace("\\", "/")
+        return path.replace("\$USER_HOME\$", home)
+    }
+
     fun getLastPath(): String? = myState.recentBooks.firstOrNull()?.path
     fun getLastPage(): Int = myState.recentBooks.firstOrNull()?.lastPage ?: 0
 }

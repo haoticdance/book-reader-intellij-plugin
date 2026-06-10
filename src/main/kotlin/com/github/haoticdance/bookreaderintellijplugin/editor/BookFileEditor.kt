@@ -3,7 +3,9 @@ package com.github.haoticdance.bookreaderintellijplugin.editor
 import com.github.haoticdance.bookreaderintellijplugin.models.BookModel
 import com.github.haoticdance.bookreaderintellijplugin.parsers.EpubParser
 import com.github.haoticdance.bookreaderintellijplugin.parsers.FB2Parser
+import com.github.haoticdance.bookreaderintellijplugin.parsers.MobiParser
 import com.github.haoticdance.bookreaderintellijplugin.services.BookReaderService
+import com.github.haoticdance.bookreaderintellijplugin.toolWindow.MyToolWindowFactory
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorLocation
@@ -19,7 +21,6 @@ import org.cef.browser.CefFrame
 import org.cef.handler.CefDisplayHandlerAdapter
 import org.cef.handler.CefKeyboardHandler
 import org.cef.handler.CefKeyboardHandlerAdapter
-import com.github.haoticdance.bookreaderintellijplugin.toolWindow.MyToolWindowFactory
 import java.awt.BorderLayout
 import java.awt.event.KeyEvent
 import java.beans.PropertyChangeListener
@@ -29,11 +30,11 @@ import javax.swing.*
 class BookFileEditor(private val project: Project, private val file: VirtualFile) : UserDataHolderBase(), FileEditor {
     private val panel = JPanel(BorderLayout())
     private val statusLabel = JLabel("", SwingConstants.CENTER)
-    
+
     private var bookModel: BookModel? = null
     private var currentPage = 0
     private val service = project.service<BookReaderService>()
-    
+
     private val cefBrowser = JBCefBrowser()
     private var pdfScrollTimer: Timer? = null
     private var jsQuery: JBCefJSQuery? = null
@@ -42,19 +43,20 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
         setupUI()
         setupCefHandlers()
         loadBook()
-        
-        project.messageBus.connect().subscribe(MyToolWindowFactory.SETTINGS_TOPIC, object : MyToolWindowFactory.BookReaderSettingsListener {
-            override fun onSettingsChanged() {
-                if (file.extension?.lowercase() != "pdf") {
-                    showPage(currentPage)
+
+        project.messageBus.connect()
+            .subscribe(MyToolWindowFactory.SETTINGS_TOPIC, object : MyToolWindowFactory.BookReaderSettingsListener {
+                override fun onSettingsChanged() {
+                    if (file.extension?.lowercase() != "pdf") {
+                        showPage(currentPage)
+                    }
                 }
-            }
-        })
+            })
     }
 
     private fun setupUI() {
         panel.add(cefBrowser.component, BorderLayout.CENTER)
-        
+
         val navPanel = JPanel(BorderLayout())
         val themeButton = JButton(if (service.isDarkMode()) "☀ Light" else "🌙 Night").apply {
             addActionListener {
@@ -63,7 +65,7 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
                 text = if (newMode) "☀ Light" else "🌙 Night"
             }
         }
-        
+
         if (file.extension?.lowercase() != "pdf") {
             val prevButton = JButton("Previous").apply {
                 addActionListener { showPage(currentPage - 1) }
@@ -71,7 +73,7 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
             val nextButton = JButton("Next").apply {
                 addActionListener { showPage(currentPage + 1) }
             }
-            
+
             navPanel.add(prevButton, BorderLayout.WEST)
             navPanel.add(statusLabel, BorderLayout.CENTER)
             val rightPanel = JPanel(BorderLayout())
@@ -82,7 +84,7 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
             // No theme button for PDF as it's not supported by renderer
             navPanel.add(JLabel(" PDF: ${file.name}"), BorderLayout.WEST)
         }
-        
+
         panel.add(navPanel, BorderLayout.SOUTH)
     }
 
@@ -96,6 +98,7 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
                                 showPage(currentPage - 1)
                                 return true
                             }
+
                             KeyEvent.VK_RIGHT -> {
                                 showPage(currentPage + 1)
                                 return true
@@ -115,9 +118,17 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
                         val scrollY = parts[0].toDouble().toInt()
                         val totalHeight = parts[1].toDouble().toInt()
                         if (totalHeight > 0) {
-                            service.updateBookProgress(file.path, file.name, "PDF Document", scrollY, totalHeight, moveToTop = false)
+                            service.updateBookProgress(
+                                file.path,
+                                file.name,
+                                "PDF Document",
+                                scrollY,
+                                totalHeight,
+                                moveToTop = false
+                            )
                         }
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) {
+                    }
                     null
                 }
             }
@@ -126,11 +137,13 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
                 override fun onAddressChange(browser: CefBrowser?, frame: CefFrame?, url: String?) {
                     val lastBook = service.getRecentBooks().find { it.path == file.path }
                     if (lastBook != null && lastBook.lastPage > 0) {
-                        cefBrowser.cefBrowser.executeJavaScript("""
+                        cefBrowser.cefBrowser.executeJavaScript(
+                            """
                             setTimeout(function() {
                                 window.scrollTo(0, ${lastBook.lastPage});
                             }, 1000);
-                        """.trimIndent(), "", 0)
+                        """.trimIndent(), "", 0
+                        )
                     }
                 }
             }, cefBrowser.cefBrowser)
@@ -149,11 +162,21 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
 
     private fun loadBook() {
         val ioFile = File(file.path)
+        if (!ioFile.exists()) {
+            renderHtml("<h1>File not found</h1><p>${ioFile.absolutePath}</p>")
+            return
+        }
+
         val recent = service.getRecentBooks().find { it.path == file.path }
-        
+
         if (file.extension?.lowercase() == "pdf") {
-            cefBrowser.loadURL("file://${ioFile.absolutePath}")
-            service.updateBookProgress(file.path, file.name, "PDF Document", recent?.lastPage ?: 0, recent?.totalPages ?: 0, moveToTop = true)
+            // Fix Windows path: C:\foo\bar → file:///C:/foo/bar
+            val url = ioFile.toURI().toString()
+            cefBrowser.loadURL(url)
+            service.updateBookProgress(
+                file.path, file.name, "PDF Document",
+                recent?.lastPage ?: 0, recent?.totalPages ?: 0, moveToTop = true
+            )
             return
         }
 
@@ -161,30 +184,38 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
             bookModel = when (file.extension?.lowercase()) {
                 "fb2" -> FB2Parser().parse(ioFile.inputStream())
                 "epub" -> EpubParser().parse(ioFile)
+                "mobi" -> MobiParser().parse(ioFile)
                 else -> null
             }
-            
+
             val model = bookModel
             if (model != null) {
-                if (recent != null) {
-                    currentPage = recent.lastPage
-                }
+                if (recent != null) currentPage = recent.lastPage
                 showPage(currentPage, saveProgress = true, moveToTop = true)
             } else {
-                renderHtml("<h1>Unsupported format or parsing error</h1>")
+                renderHtml("<h1>Unsupported format</h1><p>Extension: ${file.extension}</p>")
             }
         } catch (e: Exception) {
-            renderHtml("<h1>Error loading book</h1><p>${e.message}</p>")
+            // Show the real error so you can debug it
+            val stackTrace = e.stackTraceToString()
+                .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            renderHtml(
+                """
+            <h1>Error loading book</h1>
+            <p><b>${e::class.simpleName}:</b> ${e.message?.replace("<", "&lt;")}</p>
+            <pre style="font-size:11px;white-space:pre-wrap">$stackTrace</pre>
+        """.trimIndent()
+            )
         }
     }
 
     private fun showPage(page: Int, saveProgress: Boolean = true, moveToTop: Boolean = true) {
         val model = bookModel ?: return
         if (page < 0 || page >= model.chapters.size) return
-        
+
         currentPage = page
         val chapter = model.chapters[page]
-        
+
         val isDark = service.isDarkMode()
         val bgColor = if (isDark) "#1e1e1e" else "#fdfdfd"
         val textColor = if (isDark) "#dcdcdc" else "#333"
@@ -228,11 +259,18 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
             </body>
             </html>
         """.trimIndent()
-        
+
         renderHtml(htmlContent)
         statusLabel.text = "Chapter ${page + 1} of ${model.chapters.size}"
         if (saveProgress) {
-            service.updateBookProgress(file.path, model.title, model.author, currentPage, model.chapters.size, moveToTop = moveToTop)
+            service.updateBookProgress(
+                file.path,
+                model.title,
+                model.author,
+                currentPage,
+                model.chapters.size,
+                moveToTop = moveToTop
+            )
         }
     }
 
@@ -242,7 +280,7 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
 
     override fun getComponent(): JComponent = panel
     override fun getPreferredFocusedComponent(): JComponent = cefBrowser.component
-    override fun getName(): String = "Book Reader"
+    override fun getName(): String = "R3 Book Reader"
     override fun getFile(): VirtualFile = file
     override fun setState(state: FileEditorState) {}
     override fun isModified(): Boolean = false

@@ -4,7 +4,6 @@ import com.github.haoticdance.bookreaderintellijplugin.models.BookModel
 import com.github.haoticdance.bookreaderintellijplugin.models.Chapter
 import org.w3c.dom.Element
 import java.io.File
-import java.io.InputStream
 import java.util.zip.ZipFile
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -77,10 +76,10 @@ class EpubParser {
             val chapterEntry = zipFile.getEntry(entryPath) ?: continue
 
             val content = zipFile.getInputStream(chapterEntry).bufferedReader().use { it.readText() }
-            
+
             // Basic HTML parsing (just stripping tags for now, or could keep it as HTML)
             val bodyText = extractTextFromHtml(content)
-            
+
             chapters.add(Chapter("Chapter ${index + 1}", bodyText))
         }
 

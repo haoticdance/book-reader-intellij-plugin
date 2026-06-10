@@ -10,7 +10,7 @@ import com.intellij.openapi.vfs.VirtualFile
 
 class BookFileEditorProvider : FileEditorProvider, DumbAware {
     override fun accept(project: Project, file: VirtualFile): Boolean {
-        return file.fileType is BookFileType
+        return file.fileType is BookFileType && file.isValid
     }
 
     override fun createEditor(project: Project, file: VirtualFile): FileEditor {
@@ -19,5 +19,5 @@ class BookFileEditorProvider : FileEditorProvider, DumbAware {
 
     override fun getEditorTypeId(): String = "book-reader-editor"
 
-    override fun getPolicy(): FileEditorPolicy = FileEditorPolicy.HIDE_DEFAULT_EDITOR
+    override fun getPolicy(): FileEditorPolicy = FileEditorPolicy.PLACE_BEFORE_DEFAULT_EDITOR
 }
