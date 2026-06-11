@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [0.0.4]
+
+### Fixed
+
+- **ToolWindow NPE**: Fixed a critical `NullPointerException` when initializing the tool window with an empty reading history.
+- **Empty State UI**: Fixed an issue where the "No recent books" message was hidden by an empty scroll pane.
+
+### Changed
+
+- Updated supported format list in the UI to include MOBI.
+
 ## [0.0.3]
 
 ### Added
