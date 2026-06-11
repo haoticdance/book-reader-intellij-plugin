@@ -1,8 +1,9 @@
-# Book Reader for IntelliJ IDEA
+# R3 Book Reader for IntelliJ IDEA
 
 ![Build](https://github.com/haoticdance/book-reader-intellij-plugin/workflows/Build/badge.svg)
 
-**Book Reader** is an IntelliJ IDEA plugin designed to provide a comfortable reading experience for various book and document formats directly within your development environment.
+**R3 Book Reader** is an IntelliJ IDEA plugin designed to provide a comfortable reading experience for various book and
+document formats directly within your development environment.
 
 ## Features
 
@@ -21,16 +22,19 @@
 ## Installation
 
 - **Using the IDE built-in plugin system:**
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "Book Reader"</kbd> > <kbd>Install</kbd>
+  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "R3 Book
+  Reader"</kbd> > <kbd>Install</kbd>
 
 - **Manually:**
-  Download the [latest release](https://github.com/haoticdance/book-reader-intellij-plugin/releases/latest) and install it manually using
+  Download the [latest release](https://github.com/haoticdance/book-reader-intellij-plugin/releases/latest) and install
+  it manually using
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 ## Usage
 
 1. Open any supported book file via the standard **File > Open** menu.
-2. Or use the **Book Reader** tool window (usually on the right or left sidebar) to open new books and see your recent reading history.
+2. Or use the **R3 Book Reader** tool window (usually on the right or left sidebar) to open new books and see your
+   recent reading history.
 3. Toggle the **Night Mode** button in the editor to switch themes.
 
 ---

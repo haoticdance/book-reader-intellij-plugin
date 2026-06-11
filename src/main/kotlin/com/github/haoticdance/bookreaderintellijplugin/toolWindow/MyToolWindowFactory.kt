@@ -11,12 +11,11 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
-import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
+import com.intellij.util.messages.Topic
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
-import com.intellij.util.messages.Topic
 import java.awt.*
 import java.io.File
 import javax.swing.*
@@ -40,7 +39,7 @@ class MyToolWindowFactory : ToolWindowFactory {
         val myToolWindow = MyToolWindow(project)
         val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), null, false)
         toolWindow.contentManager.addContent(content)
-        
+
         project.messageBus.connect().subscribe(TOPIC, object : BookReaderUpdateListener {
             override fun onBookUpdated() {
                 UIUtil.invokeLaterIfNeeded {
@@ -67,8 +66,8 @@ class MyToolWindowFactory : ToolWindowFactory {
             val openButton = JButton("Open New Book").apply {
                 addActionListener {
                     val descriptor = FileChooserDescriptor(true, false, false, false, false, false)
-                        .withFileFilter { it.extension?.lowercase() in listOf("fb2", "epub", "pdf") }
-                    
+                        .withFileFilter { it.extension?.lowercase() in listOf("fb2", "epub", "pdf", "mobi") }
+
                     val file = FileChooser.chooseFile(descriptor, project, null)
                     if (file != null) {
                         FileEditorManager.getInstance(project).openFile(file, true)
@@ -80,12 +79,12 @@ class MyToolWindowFactory : ToolWindowFactory {
 
             // Recent Books List
             updateList()
-            
+
             list.apply {
                 cellRenderer = BookListCellRenderer()
                 selectionMode = ListSelectionModel.SINGLE_SELECTION
                 border = EmptyBorder(0, 0, 0, 0)
-                
+
                 // Click to open or remove
                 addMouseListener(object : java.awt.event.MouseAdapter() {
                     override fun mouseClicked(e: java.awt.event.MouseEvent) {
@@ -93,13 +92,13 @@ class MyToolWindowFactory : ToolWindowFactory {
                         if (index != -1) {
                             val selected = listModel.getElementAt(index)
                             val cellBounds = getCellBounds(index, index)
-                            
+
                             // Check if trash icon was clicked (it's on the right side)
                             val trashIconWidth = 40
                             if (e.x > cellBounds.x + cellBounds.width - trashIconWidth) {
                                 // Remove book from history
                                 service.removeBook(selected.path)
-                                
+
                                 // Close editor if open
                                 val vFile = LocalFileSystem.getInstance().findFileByPath(selected.path)
                                 if (vFile != null) {
@@ -107,9 +106,16 @@ class MyToolWindowFactory : ToolWindowFactory {
                                 }
                             } else {
                                 // Open book
-                                val vFile = LocalFileSystem.getInstance().findFileByPath(selected.path)
+                                val vFile = LocalFileSystem.getInstance()
+                                    .refreshAndFindFileByPath(selected.path)  // refreshAndFind вместо find
                                 if (vFile != null && vFile.exists()) {
                                     FileEditorManager.getInstance(project).openFile(vFile, true)
+                                } else {
+                                    com.intellij.openapi.ui.Messages.showErrorDialog(
+                                        project,
+                                        "File not found:\n${selected.path}",
+                                        "R3 Book Reader"
+                                    )
                                 }
                             }
                         }
@@ -126,17 +132,18 @@ class MyToolWindowFactory : ToolWindowFactory {
 
         fun updateList() {
             val recentBooks = service.getRecentBooks()
-            
+
             // Check if we need to show the empty label
             val hasBooks = recentBooks.isNotEmpty()
             val centerComponent = (mainPanel.layout as BorderLayout).getLayoutComponent(BorderLayout.CENTER)
-            
+
             if (!hasBooks) {
                 if (centerComponent !is JBLabel) {
                     mainPanel.remove(centerComponent)
-                    val emptyLabel = JBLabel("<html><center>No recent books. Start reading!<br><br><font color='gray'>Supported formats: FB2, EPUB, PDF</font></center></html>").apply {
-                        horizontalAlignment = SwingConstants.CENTER
-                    }
+                    val emptyLabel =
+                        JBLabel("<html><center>No recent books. Start reading!<br><br><font color='gray'>Supported formats: FB2, EPUB, PDF</font></center></html>").apply {
+                            horizontalAlignment = SwingConstants.CENTER
+                        }
                     mainPanel.add(emptyLabel, BorderLayout.CENTER)
                     mainPanel.revalidate()
                     mainPanel.repaint()
@@ -150,7 +157,7 @@ class MyToolWindowFactory : ToolWindowFactory {
                     mainPanel.revalidate()
                     mainPanel.repaint()
                 }
-                
+
                 listModel.clear()
                 recentBooks.forEach { listModel.addElement(it) }
             }
@@ -197,7 +204,8 @@ class MyToolWindowFactory : ToolWindowFactory {
                 val progressPercent = if (value.totalPages > 0) (value.lastPage + 1) * 100 / value.totalPages else 0
                 val progressLabel = JLabel("Progress: $progressPercent% (${value.lastPage + 1}/${value.totalPages})")
                 progressLabel.font = progressLabel.font.deriveFont(10f)
-                progressLabel.foreground = if (isSelected) list.selectionForeground else UIUtil.getContextHelpForeground()
+                progressLabel.foreground =
+                    if (isSelected) list.selectionForeground else UIUtil.getContextHelpForeground()
                 gbc.gridy = 2
                 gbc.gridx = 0
                 panel.add(progressLabel, gbc)
