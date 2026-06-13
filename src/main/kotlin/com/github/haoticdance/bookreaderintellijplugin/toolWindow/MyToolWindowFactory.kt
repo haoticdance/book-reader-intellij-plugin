@@ -123,10 +123,6 @@ class MyToolWindowFactory : ToolWindowFactory {
                 })
             }
 
-            val scrollPane = JBScrollPane(list)
-            scrollPane.border = JBUI.Borders.empty()
-            mainPanel.add(scrollPane, BorderLayout.CENTER)
-
             return mainPanel
         }
 
@@ -139,9 +135,11 @@ class MyToolWindowFactory : ToolWindowFactory {
 
             if (!hasBooks) {
                 if (centerComponent !is JBLabel) {
-                    mainPanel.remove(centerComponent)
+                    if (centerComponent != null) {
+                        mainPanel.remove(centerComponent)
+                    }
                     val emptyLabel =
-                        JBLabel("<html><center>No recent books. Start reading!<br><br><font color='gray'>Supported formats: FB2, EPUB, PDF</font></center></html>").apply {
+                        JBLabel("<html><center>No recent books. Start reading!<br><br><font color='gray'>Supported formats: FB2, MOBI, EPUB, PDF</font></center></html>").apply {
                             horizontalAlignment = SwingConstants.CENTER
                         }
                     mainPanel.add(emptyLabel, BorderLayout.CENTER)
@@ -149,8 +147,10 @@ class MyToolWindowFactory : ToolWindowFactory {
                     mainPanel.repaint()
                 }
             } else {
-                if (centerComponent is JBLabel) {
-                    mainPanel.remove(centerComponent)
+                if (centerComponent is JBLabel || centerComponent == null) {
+                    if (centerComponent != null) {
+                        mainPanel.remove(centerComponent)
+                    }
                     val scrollPane = JBScrollPane(list)
                     scrollPane.border = JBUI.Borders.empty()
                     mainPanel.add(scrollPane, BorderLayout.CENTER)
