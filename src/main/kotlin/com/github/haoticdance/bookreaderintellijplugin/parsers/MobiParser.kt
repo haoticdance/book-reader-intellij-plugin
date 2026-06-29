@@ -138,10 +138,13 @@ class MobiParser {
         result = result.replace(Regex("<script[^>]*>.*?</script>", RegexOption.DOT_MATCHES_ALL), "")
 
         if (firstImageRecord > 0) {
-            result = result.replace(Regex("""<img[^>]+recindex=["']([0-9]+)["'][^>]*>""", RegexOption.IGNORE_CASE)) { mr ->
+            result = result.replace(Regex("""<img[^>]+(?:recindex=["']?([0-9]+)["']?|src=["']?recindex([0-9]+)[^"']*["']?)[^>]*>""", RegexOption.IGNORE_CASE)) { mr ->
                 val imgTag = mr.value
-                val recindex = mr.groupValues[1].toIntOrNull() ?: return@replace imgTag
-                val recordIndex = firstImageRecord + recindex - 1
+                val recindexStr = mr.groupValues[1].takeIf { it.isNotEmpty() } ?: mr.groupValues[2]
+                val recindex = recindexStr.toIntOrNull() ?: return@replace imgTag
+                
+                // Heuristic: if recindex is small, it's a 1-based offset. If it's >= firstImageRecord, it's absolute.
+                val recordIndex = if (recindex < firstImageRecord) firstImageRecord + recindex - 1 else recindex
 
                 if (recordIndex < 0 || recordIndex >= offsets.size) return@replace imgTag
 
@@ -160,7 +163,9 @@ class MobiParser {
                     val b64 = java.util.Base64.getEncoder().encodeToString(data)
                     val dataUri = "data:$mime;base64,$b64"
                     
-                    imgTag.replace(Regex("""recindex=["'][0-9]+["']""", RegexOption.IGNORE_CASE), "src=\"$dataUri\"")
+                    var newImgTag = imgTag.replace(Regex("""recindex=["']?[0-9]+["']?""", RegexOption.IGNORE_CASE), "src=\"$dataUri\"")
+                    newImgTag = newImgTag.replace(Regex("""src=["']?recindex[0-9]+[^"']*["']?""", RegexOption.IGNORE_CASE), "src=\"$dataUri\"")
+                    newImgTag
                 } catch (e: Exception) {
                     imgTag
                 }
@@ -218,7 +223,10 @@ class MobiParser {
 
         if (parts.size > 1) {
             return parts.mapIndexed { index, part ->
-                Chapter("Chapter ${index + 1}", part, isHtml = true)
+                val titleMatch = Regex("""<h[1-4][^>]*>(.*?)</h[1-4]>""", RegexOption.IGNORE_CASE).find(part)
+                var rawTitle = titleMatch?.groupValues?.get(1)?.replace(Regex("<[^>]*>"), "")?.trim()
+                if (rawTitle.isNullOrBlank()) rawTitle = "Chapter ${index + 1}"
+                Chapter(rawTitle, part, isHtml = true)
             }.filter { it.body.isNotBlank() }
         }
 
@@ -229,7 +237,11 @@ class MobiParser {
             var count = 1
             while (start < html.length) {
                 val end = minOf(start + maxLength, html.length)
-                chunks.add(Chapter("Part $count", html.substring(start, end), isHtml = true))
+                val part = html.substring(start, end)
+                val titleMatch = Regex("""<h[1-4][^>]*>(.*?)</h[1-4]>""", RegexOption.IGNORE_CASE).find(part)
+                var rawTitle = titleMatch?.groupValues?.get(1)?.replace(Regex("<[^>]*>"), "")?.trim()
+                if (rawTitle.isNullOrBlank()) rawTitle = "Part $count"
+                chunks.add(Chapter(rawTitle, part, isHtml = true))
                 start = end
                 count++
             }
