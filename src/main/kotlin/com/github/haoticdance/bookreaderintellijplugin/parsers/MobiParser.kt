@@ -65,7 +65,11 @@ class MobiParser {
             raf.readFully(titleBytes)
             val title = String(titleBytes, charset).trim { it <= ' ' || it == '\u0000' }
 
-            // 6. EXTH header: immediately after the MOBI header
+            // 6. Read firstImageRecord (offset 108 from MOBI header)
+            raf.seek(offsets[0] + 16 + 108)
+            val firstImageRecord = raf.readInt()
+
+            // 7. EXTH header: immediately after the MOBI header
             //    MOBI header starts at offsets[0]+16, its own length is headerLength
             var author = "Unknown Author"
             val exthStart = offsets[0] + 16 + headerLength
@@ -121,11 +125,56 @@ class MobiParser {
                 fullText.append(String(decompressed, charset))
             }
 
-            val chapters = splitIntoChapters(fullText.toString())
+            val processedHtml = processMobiHtml(fullText.toString(), raf, offsets, firstImageRecord)
+            val chapters = splitIntoChapters(processedHtml)
             return BookModel(title, author, chapters)
         } finally {
             raf.close()
         }
+    }
+
+    private fun processMobiHtml(html: String, raf: RandomAccessFile, offsets: LongArray, firstImageRecord: Int): String {
+        var result = html
+        result = result.replace(Regex("<script[^>]*>.*?</script>", RegexOption.DOT_MATCHES_ALL), "")
+
+        if (firstImageRecord > 0) {
+            result = result.replace(Regex("""<img[^>]+recindex=["']([0-9]+)["'][^>]*>""", RegexOption.IGNORE_CASE)) { mr ->
+                val imgTag = mr.value
+                val recindex = mr.groupValues[1].toIntOrNull() ?: return@replace imgTag
+                val recordIndex = firstImageRecord + recindex - 1
+
+                if (recordIndex < 0 || recordIndex >= offsets.size) return@replace imgTag
+
+                val start = offsets[recordIndex]
+                val end = if (recordIndex + 1 < offsets.size) offsets[recordIndex + 1] else raf.length()
+                val len = (end - start).toInt()
+
+                if (len <= 0) return@replace imgTag
+
+                try {
+                    raf.seek(start)
+                    val data = ByteArray(len)
+                    raf.readFully(data)
+
+                    val mime = getMimeType(data)
+                    val b64 = java.util.Base64.getEncoder().encodeToString(data)
+                    val dataUri = "data:$mime;base64,$b64"
+                    
+                    imgTag.replace(Regex("""recindex=["'][0-9]+["']""", RegexOption.IGNORE_CASE), "src=\"$dataUri\"")
+                } catch (e: Exception) {
+                    imgTag
+                }
+            }
+        }
+        return result
+    }
+
+    private fun getMimeType(data: ByteArray): String {
+        if (data.size < 4) return "image/jpeg"
+        if (data[0] == 0xFF.toByte() && data[1] == 0xD8.toByte()) return "image/jpeg"
+        if (data[0] == 0x89.toByte() && data[1] == 0x50.toByte() && data[2] == 0x4E.toByte() && data[3] == 0x47.toByte()) return "image/png"
+        if (data[0] == 'G'.code.toByte() && data[1] == 'I'.code.toByte() && data[2] == 'F'.code.toByte()) return "image/gif"
+        return "image/jpeg"
     }
 
     private fun decompressPalmDoc(compressed: ByteArray): ByteArray {
@@ -136,15 +185,12 @@ class MobiParser {
             when {
                 b == 0x00 -> out.add(0)
                 b in 0x01..0x08 -> {
-                    // Literal run: next b bytes are copied as-is
                     for (j in 0 until b) {
                         if (i < compressed.size) out.add(compressed[i++])
                     }
                 }
-
                 b in 0x09..0x7F -> out.add(b.toByte())
                 b in 0x80..0xBF -> {
-                    // Back-reference: 2-byte sequence encodes distance+length
                     if (i < compressed.size) {
                         val b2 = compressed[i++].toInt() and 0xFF
                         val combined = ((b and 0x3F) shl 8) or b2
@@ -158,9 +204,7 @@ class MobiParser {
                         }
                     }
                 }
-
                 else -> {
-                    // 0xC0..0xFF: space + decoded character
                     out.add(' '.code.toByte())
                     out.add((b xor 0x80).toByte())
                 }
@@ -174,7 +218,7 @@ class MobiParser {
 
         if (parts.size > 1) {
             return parts.mapIndexed { index, part ->
-                Chapter("Chapter ${index + 1}", extractTextFromHtml(part))
+                Chapter("Chapter ${index + 1}", part, isHtml = true)
             }.filter { it.body.isNotBlank() }
         }
 
@@ -185,27 +229,13 @@ class MobiParser {
             var count = 1
             while (start < html.length) {
                 val end = minOf(start + maxLength, html.length)
-                chunks.add(Chapter("Part $count", extractTextFromHtml(html.substring(start, end))))
+                chunks.add(Chapter("Part $count", html.substring(start, end), isHtml = true))
                 start = end
                 count++
             }
             return chunks
         }
 
-        return listOf(Chapter("Full Text", extractTextFromHtml(html)))
-    }
-
-    private fun extractTextFromHtml(html: String): String {
-        return html
-            .replace(Regex("<script[^>]*>.*?</script>", RegexOption.DOT_MATCHES_ALL), "")
-            .replace(Regex("<style[^>]*>.*?</style>", RegexOption.DOT_MATCHES_ALL), "")
-            .replace(Regex("<[^>]*>"), " ")
-            .replace(Regex("&nbsp;"), " ")
-            .replace(Regex("&amp;"), "&")
-            .replace(Regex("&lt;"), "<")
-            .replace(Regex("&gt;"), ">")
-            .replace(Regex("&quot;"), "\"")
-            .replace(Regex("\\s+"), " ")
-            .trim()
+        return listOf(Chapter("Full Text", html, isHtml = true))
     }
 }
