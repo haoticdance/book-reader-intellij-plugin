@@ -24,7 +24,8 @@ class BookReaderService(private val project: com.intellij.openapi.project.Projec
 
     data class State(
         var recentBooks: MutableList<RecentBook> = mutableListOf(),
-        var isDarkMode: Boolean = false
+        var isDarkMode: Boolean = false,
+        var zoomLevel: Double = 0.0
     )
 
     private var myState = State()
@@ -35,6 +36,7 @@ class BookReaderService(private val project: com.intellij.openapi.project.Projec
         myState.recentBooks.clear()
         myState.recentBooks.addAll(state.recentBooks)
         myState.isDarkMode = state.isDarkMode
+        myState.zoomLevel = state.zoomLevel
     }
 
     fun isDarkMode(): Boolean = myState.isDarkMode
@@ -42,6 +44,12 @@ class BookReaderService(private val project: com.intellij.openapi.project.Projec
     fun setDarkMode(enabled: Boolean) {
         myState.isDarkMode = enabled
         project.messageBus.syncPublisher(MyToolWindowFactory.SETTINGS_TOPIC).onSettingsChanged()
+    }
+
+    fun getZoomLevel(): Double = myState.zoomLevel
+
+    fun setZoomLevel(level: Double) {
+        myState.zoomLevel = level.coerceIn(-3.0, 5.0)
     }
 
     fun updateBookProgress(

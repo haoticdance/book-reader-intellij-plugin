@@ -17,6 +17,8 @@ dependencies {
 }
 
 intellijPlatform {
+    instrumentCode = false
+
     pluginVerification {
         ides {
             recommended()
