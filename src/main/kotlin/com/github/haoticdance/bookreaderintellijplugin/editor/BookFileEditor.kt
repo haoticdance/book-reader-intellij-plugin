@@ -2,12 +2,14 @@ package com.github.haoticdance.bookreaderintellijplugin.editor
 
 import com.github.haoticdance.bookreaderintellijplugin.models.BookModel
 import com.github.haoticdance.bookreaderintellijplugin.models.Chapter
+import com.github.haoticdance.bookreaderintellijplugin.models.INTERNAL_LINK_SCHEME
 import com.github.haoticdance.bookreaderintellijplugin.models.TocNode
 import com.github.haoticdance.bookreaderintellijplugin.parsers.EpubParser
 import com.github.haoticdance.bookreaderintellijplugin.parsers.FB2Parser
 import com.github.haoticdance.bookreaderintellijplugin.parsers.MobiParser
 import com.github.haoticdance.bookreaderintellijplugin.services.BookReaderService
 import com.github.haoticdance.bookreaderintellijplugin.toolWindow.MyToolWindowFactory
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorLocation
@@ -27,6 +29,8 @@ import org.cef.browser.CefFrame
 import org.cef.handler.CefDisplayHandlerAdapter
 import org.cef.handler.CefKeyboardHandler
 import org.cef.handler.CefKeyboardHandlerAdapter
+import org.cef.handler.CefRequestHandlerAdapter
+import org.cef.network.CefRequest
 import java.awt.*
 import java.awt.event.KeyEvent
 import java.beans.PropertyChangeListener
@@ -382,6 +386,38 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
             }
         }, cefBrowser.cefBrowser)
 
+        // Intercept in-text link clicks: internal book links (resolved to INTERNAL_LINK_SCHEME
+        // by the parsers) become a page jump instead of a failed navigation, and external
+        // http(s) links open in the system browser instead of hijacking the embedded reader.
+        cefBrowser.jbCefClient.addRequestHandler(object : CefRequestHandlerAdapter() {
+            override fun onBeforeBrowse(
+                browser: CefBrowser?, frame: CefFrame?, request: CefRequest?, user_gesture: Boolean, is_redirect: Boolean
+            ): Boolean {
+                val url = request?.url ?: return false
+                if (!user_gesture) return false // let programmatic loadHTML navigation through untouched
+
+                if (url.startsWith(INTERNAL_LINK_SCHEME)) {
+                    val target = url.removePrefix(INTERNAL_LINK_SCHEME)
+                    val page = target.substringBefore("#").toIntOrNull()
+                    val anchor = target.substringAfter("#", "").ifEmpty { null }
+                    if (page != null) {
+                        SwingUtilities.invokeLater {
+                            showPage(page)
+                            if (anchor != null) scrollToAnchor(anchor)
+                        }
+                    }
+                    return true
+                }
+
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    BrowserUtil.browse(url)
+                    return true
+                }
+
+                return false
+            }
+        }, cefBrowser.cefBrowser)
+
         if (file.extension?.lowercase() == "pdf") {
             jsQuery = JBCefJSQuery.create(cefBrowser as JBCefBrowserBase).apply {
                 addHandler { dataStr ->
@@ -489,7 +525,7 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
         val linkColor = if (isDark) "#7ab4f5" else "#0645ad"
 
         val htmlContent = if (chapter.isHtml) {
-            injectReaderStyles(chapter.body, isDark, bgColor, textColor, titleColor, linkColor, chapter.title)
+            injectReaderStyles(chapter.body, isDark, bgColor, textColor, titleColor, linkColor, chapter.title, chapter.stripExistingStyles)
         } else {
             buildPlainTextHtml(chapter, isDark, bgColor, textColor, titleColor)
         }
@@ -512,19 +548,27 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
 
     private fun injectReaderStyles(
         html: String, isDark: Boolean, bgColor: String,
-        textColor: String, titleColor: String, linkColor: String, chapterTitle: String
+        textColor: String, titleColor: String, linkColor: String,
+        chapterTitle: String, stripExistingStyles: Boolean = false
     ): String {
         val readerCss = """
             /* === R3 Reader overlay === */
+            * { box-sizing: border-box; }
             html, body {
                 background-color: $bgColor !important;
                 color: $textColor !important;
+            }
+            html, body, p, div, span, h1, h2, h3, h4, h5, h6, a, li, td, th, blockquote, em, strong, b, i, u {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            }
+            body {
                 max-width: 860px;
                 margin: 0 auto !important;
                 padding: 32px 24px !important;
                 font-size: 17px;
                 line-height: 1.75;
                 word-wrap: break-word;
+                overflow-wrap: break-word;
             }
             img, svg, figure {
                 max-width: 100% !important;
@@ -533,19 +577,56 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
                 margin: 1em auto;
             }
             a { color: $linkColor !important; }
-            h1, h2, h3, h4, h5, h6 { color: $titleColor !important; }
+            h1, h2, h3, h4, h5, h6 { color: $titleColor !important; margin-top: 1.2em; margin-bottom: 0.6em; }
             ${if (isDark) "table, td, th { border-color: #444 !important; }" else ""}
         """.trimIndent()
 
         val styleTag = "<style id=\"r3-reader-override\">\n$readerCss\n</style>"
 
-        if (html.contains("</head>", ignoreCase = true)) {
-            return html.replace(Regex("</head>", RegexOption.IGNORE_CASE), "$styleTag\n</head>")
+        // Conditionally strip existing <style> blocks (MOBI = yes, EPUB = no)
+        var cleaned = if (stripExistingStyles) {
+            html.replace(Regex("<style[^>]*>.*?</style>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), "")
+        } else {
+            html
         }
-        if (html.contains("<head>", ignoreCase = true)) {
-            return html.replace(Regex("<head>", RegexOption.IGNORE_CASE), "<head>\n$styleTag")
+
+        // Extract body content for clean wrapping
+        val bodyContent = when {
+            cleaned.contains("<body", ignoreCase = true) && cleaned.contains("</body>", ignoreCase = true) -> {
+                val bodyMatch = Regex("<body[^>]*>(.*)</body>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(cleaned)
+                bodyMatch?.groupValues?.get(1) ?: cleaned
+            }
+            else -> {
+                cleaned
+                    .replace(Regex("""<\?xml[^>]*>""", RegexOption.IGNORE_CASE), "")
+                    .replace(Regex("""<!DOCTYPE[^>]*>""", RegexOption.IGNORE_CASE), "")
+                    .replace(Regex("""</?html[^>]*>""", RegexOption.IGNORE_CASE), "")
+                    .replace(Regex("""<head[^>]*>.*?</head>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), "")
+                    .replace(Regex("""</?head[^>]*>""", RegexOption.IGNORE_CASE), "")
+                    .replace(Regex("""</?body[^>]*>""", RegexOption.IGNORE_CASE), "")
+            }
         }
-        return "<html><head>$styleTag</head><body>$html</body></html>"
+
+        // For EPUB, preserve existing <style> blocks by extracting them
+        val existingStyles = if (!stripExistingStyles) {
+            val styleBlocks = mutableListOf<String>()
+            Regex("<style[^>]*>.*?</style>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+                .findAll(bodyContent).forEach { styleBlocks.add(it.value) }
+            styleBlocks.joinToString("\n")
+        } else ""
+
+        return """
+            <html>
+            <head>
+                <meta charset="utf-8">
+                $existingStyles
+                $styleTag
+            </head>
+            <body>
+                $bodyContent
+            </body>
+            </html>
+        """.trimIndent()
     }
 
     private fun buildPlainTextHtml(
@@ -584,6 +665,20 @@ class BookFileEditor(private val project: Project, private val file: VirtualFile
         cefBrowser.loadHTML(html)
         // Re-apply zoom after content loads
         SwingUtilities.invokeLater { applyZoom() }
+    }
+
+    /** Scrolls the current page to an element by id/name once the freshly loaded page settles. */
+    private fun scrollToAnchor(id: String) {
+        val escaped = id.replace("\\", "\\\\").replace("'", "\\'")
+        cefBrowser.cefBrowser.executeJavaScript(
+            """
+            setTimeout(function() {
+                var el = document.getElementById('$escaped') || document.getElementsByName('$escaped')[0];
+                if (el) el.scrollIntoView({block: 'start'});
+            }, 200);
+            """.trimIndent(),
+            "", 0
+        )
     }
 
     // ──────────────────────────────────────────────
