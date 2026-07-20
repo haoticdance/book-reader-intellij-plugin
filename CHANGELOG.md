@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-07-20
+
 ### Fixed
 
 - **MOBI Table of Contents**: Removed duplicate entries that pointed at the same chapter and did nothing when clicked; each TOC entry now maps to a unique, navigable page.
@@ -65,3 +67,10 @@
 - Support for EPUB, FB2, and PDF formats.
 - Night mode support.
 - Recent books tracking.
+
+[Unreleased]: https://github.com/haoticdance/book-reader-intellij-plugin/compare/0.0.5...HEAD
+[0.0.5]: https://github.com/haoticdance/book-reader-intellij-plugin/compare/0.0.4...0.0.5
+[0.0.4]: https://github.com/haoticdance/book-reader-intellij-plugin/compare/0.0.3...0.0.4
+[0.0.3]: https://github.com/haoticdance/book-reader-intellij-plugin/compare/0.0.2...0.0.3
+[0.0.2]: https://github.com/haoticdance/book-reader-intellij-plugin/compare/0.0.1...0.0.2
+[0.0.1]: https://github.com/haoticdance/book-reader-intellij-plugin/commits/0.0.1
