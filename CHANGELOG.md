@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **MOBI Table of Contents**: Removed duplicate entries that pointed at the same chapter and did nothing when clicked; each TOC entry now maps to a unique, navigable page.
+- **MOBI In-Text Links**: Legacy Mobipocket `filepos` links and cross-chapter footnote/anchor links are now resolved to real navigation targets instead of being unclickable.
+
+### Changed
+
+- External `http(s)` links found in book content now open in the system browser instead of navigating away from the reader.
+
 ## [0.0.4]
 
 ### Fixed
